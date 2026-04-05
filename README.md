@@ -57,7 +57,7 @@ cp .env.example .env
 ```bash
 # 基本用法
 python -m novel_factory.main -i "一个关于时间旅行者在末日废墟中寻找失落文明的故事" -c 3
-
+novel-factory -i "一个关于时间旅行者在末日废墟中寻找失落文明的故事" -c 3
 # 指定模型
 python -m novel_factory.main -i "你的灵感" -c 5 -m claude-sonnet-4-6
 
