@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "novel-factory"
+version = "0.1.0"
+description = "Multi-Agent Novel Writing Pipeline powered by LangGraph"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.4",
+    "langchain-openai>=0.3",
+    "langchain-anthropic>=0.3",
+    "langchain-core>=0.3",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+novel-factory = "novel_factory.main:main"
