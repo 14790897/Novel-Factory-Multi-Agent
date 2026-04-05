@@ -61,7 +61,7 @@ def _log_event_output(node_name: str, output: dict):
     LOGGER.info("NODE_OUTPUT %s\n%s", node_name, serialized)
 
 
-def _save_outputs(completed_chapters: list[dict], output_dir: Path):
+def _save_outputs(completed_chapters: list[dict], output_dir: Path, run_id: str):
     """Write each chapter and the full novel to disk."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -71,7 +71,7 @@ def _save_outputs(completed_chapters: list[dict], output_dir: Path):
         title = ch["title"]
         text = ch["text"]
 
-        chapter_file = output_dir / f"chapter_{num:02d}.md"
+        chapter_file = output_dir / f"chapter_{num:02d}_{run_id}.md"
         chapter_file.write_text(
             f"# {title}\n\n{text}\n",
             encoding="utf-8",
@@ -79,13 +79,13 @@ def _save_outputs(completed_chapters: list[dict], output_dir: Path):
         _log(f"  ✓ 已保存 {chapter_file}")
         full_parts.append(f"# {title}\n\n{text}")
 
-    full_novel = output_dir / "full_novel.md"
+    full_novel = output_dir / f"full_novel_{run_id}.md"
     full_novel.write_text("\n\n---\n\n".join(full_parts) + "\n", encoding="utf-8")
     _log(f"  ✓ 已保存完整小说 → {full_novel}")
 
     # Also dump the story bible
     if completed_chapters:
-        bible_file = output_dir / "story_bible.json"
+        bible_file = output_dir / f"story_bible_{run_id}.json"
         bible_file.write_text(
             json.dumps(
                 completed_chapters[0].get("story_bible", {}),
@@ -153,13 +153,11 @@ def main():
     )
     args = parser.parse_args()
 
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
     if args.log_file:
         log_file = Path(args.log_file)
     else:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = (
-            Path(args.output_dir) / f"novel_factory_{timestamp}_{os.getpid()}.log"
-        )
+        log_file = Path(args.output_dir) / f"novel_factory_{run_id}.log"
     _setup_logging(log_file)
 
     # Validate API keys
@@ -233,7 +231,7 @@ def main():
     print()
     _log("=" * 60)
     _log("📖 小说生成完成！正在保存文件...")
-    _save_outputs(final_state.get("completed_chapters", []), Path(args.output_dir))
+    _save_outputs(final_state.get("completed_chapters", []), Path(args.output_dir), run_id)
     _log("=" * 60)
     _log("✅ 全部完成！")
 
