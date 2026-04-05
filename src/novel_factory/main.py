@@ -2,14 +2,18 @@
 
 import argparse
 import json
+import logging
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from novel_factory.graph import build_graph
 from novel_factory.state import NovelState
+
+LOGGER = logging.getLogger("novel_factory")
 
 
 def _get_llm(model: str):
@@ -24,6 +28,37 @@ def _get_llm(model: str):
         if base_url:
             kwargs["base_url"] = base_url
         return ChatOpenAI(**kwargs)
+
+
+def _setup_logging(log_file: Path):
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    LOGGER.setLevel(logging.INFO)
+    LOGGER.handlers.clear()
+    LOGGER.propagate = False
+
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    LOGGER.addHandler(file_handler)
+
+
+def _log(message: str):
+    LOGGER.info(message)
+    print(message)
+
+
+def _log_event_output(node_name: str, output: dict):
+    """Log full node output to file for debugging."""
+    try:
+        serialized = json.dumps(output, ensure_ascii=False, indent=2, default=str)
+    except TypeError:
+        serialized = str(output)
+    LOGGER.info("NODE_OUTPUT %s\n%s", node_name, serialized)
 
 
 def _save_outputs(completed_chapters: list[dict], output_dir: Path):
@@ -41,12 +76,12 @@ def _save_outputs(completed_chapters: list[dict], output_dir: Path):
             f"# {title}\n\n{text}\n",
             encoding="utf-8",
         )
-        print(f"  ✓ 已保存 {chapter_file}")
+        _log(f"  ✓ 已保存 {chapter_file}")
         full_parts.append(f"# {title}\n\n{text}")
 
     full_novel = output_dir / "full_novel.md"
     full_novel.write_text("\n\n---\n\n".join(full_parts) + "\n", encoding="utf-8")
-    print(f"  ✓ 已保存完整小说 → {full_novel}")
+    _log(f"  ✓ 已保存完整小说 → {full_novel}")
 
     # Also dump the story bible
     if completed_chapters:
@@ -90,7 +125,13 @@ def main():
         help="Max revision rounds per scene beat (default: 3)",
     )
     parser.add_argument(
-        "-o", "--output-dir",
+        "--log-file",
+        default=None,
+        help="Log file path (default: <output-dir>/novel_factory.log)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-dir",
         default="./output",
         help="Directory for generated novel files (default: ./output)",
     )
@@ -105,22 +146,36 @@ def main():
         default=None,
         help="Path for diagram output file",
     )
+    parser.add_argument(
+        "--no-log-outputs",
+        action="store_true",
+        help="Disable logging full output of every node to the log file",
+    )
     args = parser.parse_args()
+
+    if args.log_file:
+        log_file = Path(args.log_file)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = (
+            Path(args.output_dir) / f"novel_factory_{timestamp}_{os.getpid()}.log"
+        )
+    _setup_logging(log_file)
 
     # Validate API keys
     if args.model.startswith("claude"):
         if not os.environ.get("ANTHROPIC_API_KEY"):
-            print("错误：使用 Claude 模型需要设置 ANTHROPIC_API_KEY 环境变量。")
+            _log("错误：使用 Claude 模型需要设置 ANTHROPIC_API_KEY 环境变量。")
             sys.exit(1)
     else:
         if not os.environ.get("OPENAI_API_KEY"):
-            print("错误：使用 OpenAI 模型需要设置 OPENAI_API_KEY 环境变量。")
+            _log("错误：使用 OpenAI 模型需要设置 OPENAI_API_KEY 环境变量。")
             sys.exit(1)
 
-    print("🏭 Novel Factory 启动")
-    print(f"   模型: {args.model}")
-    print(f"   章节: {args.chapters}")
-    print(f"   灵感: {args.input[:80]}{'...' if len(args.input) > 80 else ''}")
+    _log("🏭 Novel Factory 启动")
+    _log(f"   模型: {args.model}")
+    _log(f"   章节: {args.chapters}")
+    _log(f"   灵感: {args.input[:80]}{'...' if len(args.input) > 80 else ''}")
     print()
 
     llm = _get_llm(args.model)
@@ -132,12 +187,12 @@ def main():
             diagram_path = args.diagram_file or "graph.mmd"
             mermaid = app.get_graph().draw_mermaid()
             Path(diagram_path).write_text(mermaid, encoding="utf-8")
-            print(f"  ✓ 已生成 Mermaid 流程图 → {diagram_path}")
+            _log(f"  ✓ 已生成 Mermaid 流程图 → {diagram_path}")
         else:
             diagram_path = args.diagram_file or "graph.png"
             png_bytes = app.get_graph().draw_mermaid_png()
             Path(diagram_path).write_bytes(png_bytes)
-            print(f"  ✓ 已生成 PNG 流程图 → {diagram_path}")
+            _log(f"  ✓ 已生成 PNG 流程图 → {diagram_path}")
         print()
 
     initial_state: NovelState = {
@@ -157,7 +212,7 @@ def main():
         "completed_chapters": [],
     }
 
-    print("📐 阶段 1/5: 世界观构建中 (Chief Architect)...")
+    _log("📐 阶段 1/5: 世界观构建中 (Chief Architect)...")
 
     # Stream events so we can show progress
     current_node = ""
@@ -167,18 +222,20 @@ def main():
             if node_name != current_node:
                 current_node = node_name
                 _print_progress(node_name, node_output)
+            if not args.no_log_outputs:
+                _log_event_output(node_name, node_output)
             final_state = {**initial_state, **(final_state or {}), **node_output}
 
     if not final_state:
-        print("错误：流水线未产生任何输出。")
+        _log("错误：流水线未产生任何输出。")
         sys.exit(1)
 
     print()
-    print("=" * 60)
-    print("📖 小说生成完成！正在保存文件...")
+    _log("=" * 60)
+    _log("📖 小说生成完成！正在保存文件...")
     _save_outputs(final_state.get("completed_chapters", []), Path(args.output_dir))
-    print("=" * 60)
-    print("✅ 全部完成！")
+    _log("=" * 60)
+    _log("✅ 全部完成！")
 
 
 def _print_progress(node_name: str, output: dict):
@@ -201,7 +258,7 @@ def _print_progress(node_name: str, output: dict):
         ch = output["completed_chapters"][-1] if output["completed_chapters"] else {}
         label = f"📋 第{ch.get('chapter_number', '?')}章「{ch.get('title', '')}」完成"
 
-    print(f"  {label}")
+    _log(f"  {label}")
 
 
 if __name__ == "__main__":

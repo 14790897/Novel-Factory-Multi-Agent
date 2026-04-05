@@ -49,6 +49,7 @@ Guidelines:
 - Chapter outlines should build tension and follow a satisfying narrative arc.
 - Generate exactly the number of chapters requested by the user.
 - Write all content in Chinese (中文).
+- Output ONLY the JSON object, with no Markdown or extra text.
 """
 
 OUTLINER_SYSTEM = """\
@@ -76,6 +77,7 @@ Guidelines:
 - Characters must exist in the Story Bible.
 - Locations must exist in the Story Bible's setting.
 - Write all content in Chinese (中文).
+- Output ONLY the JSON array, with no Markdown or extra text.
 """
 
 NOVELIST_SYSTEM = """\
@@ -131,6 +133,7 @@ Review dimensions:
 
 Set "approved" to false ONLY if there are critical or multiple major issues.
 Minor issues alone should still result in approval.
+- Output ONLY the JSON object, with no Markdown or extra text.
 """
 
 SUMMARIZER_SYSTEM = """\

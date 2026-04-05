@@ -3,6 +3,7 @@
 import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.utils.json import parse_json_markdown
 
 from novel_factory.prompts import EDITOR_SYSTEM
 from novel_factory.state import NovelState
@@ -27,12 +28,7 @@ def editor_node(state: NovelState, llm) -> dict:
     response = llm.invoke(messages)
     content = response.content
 
-    if "```json" in content:
-        content = content.split("```json")[1].split("```")[0]
-    elif "```" in content:
-        content = content.split("```")[1].split("```")[0]
-
-    review = json.loads(content.strip())
+    review = parse_json_markdown(content)
 
     approved = review.get("approved", True)
 

@@ -1,8 +1,7 @@
 """Chief Architect Agent — generates the Story Bible and chapter outlines."""
 
-import json
-
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.utils.json import parse_json_markdown
 
 from novel_factory.prompts import ARCHITECT_SYSTEM
 from novel_factory.state import NovelState
@@ -25,13 +24,7 @@ def architect_node(state: NovelState, llm) -> dict:
     response = llm.invoke(messages)
     content = response.content
 
-    # Extract JSON from the response (handle markdown code blocks)
-    if "```json" in content:
-        content = content.split("```json")[1].split("```")[0]
-    elif "```" in content:
-        content = content.split("```")[1].split("```")[0]
-
-    data = json.loads(content.strip())
+    data = parse_json_markdown(content)
 
     return {
         "story_bible": data["story_bible"],
