@@ -94,6 +94,17 @@ def main():
         default="./output",
         help="Directory for generated novel files (default: ./output)",
     )
+    parser.add_argument(
+        "--diagram",
+        default="none",
+        choices=["none", "mermaid", "png"],
+        help="Generate graph diagram (default: none)",
+    )
+    parser.add_argument(
+        "--diagram-file",
+        default=None,
+        help="Path for diagram output file",
+    )
     args = parser.parse_args()
 
     # Validate API keys
@@ -106,7 +117,7 @@ def main():
             print("错误：使用 OpenAI 模型需要设置 OPENAI_API_KEY 环境变量。")
             sys.exit(1)
 
-    print(f"🏭 Novel Factory 启动")
+    print("🏭 Novel Factory 启动")
     print(f"   模型: {args.model}")
     print(f"   章节: {args.chapters}")
     print(f"   灵感: {args.input[:80]}{'...' if len(args.input) > 80 else ''}")
@@ -114,6 +125,20 @@ def main():
 
     llm = _get_llm(args.model)
     app = build_graph(llm)
+
+    # Generate diagram if requested
+    if args.diagram != "none":
+        if args.diagram == "mermaid":
+            diagram_path = args.diagram_file or "graph.mmd"
+            mermaid = app.get_graph().draw_mermaid()
+            Path(diagram_path).write_text(mermaid, encoding="utf-8")
+            print(f"  ✓ 已生成 Mermaid 流程图 → {diagram_path}")
+        else:
+            diagram_path = args.diagram_file or "graph.png"
+            png_bytes = app.get_graph().draw_mermaid_png()
+            Path(diagram_path).write_bytes(png_bytes)
+            print(f"  ✓ 已生成 PNG 流程图 → {diagram_path}")
+        print()
 
     initial_state: NovelState = {
         "user_input": args.input,
