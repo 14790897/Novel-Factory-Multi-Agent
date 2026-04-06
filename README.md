@@ -2,27 +2,8 @@
 
 基于 LangGraph 的长篇小说创作流水线系统。通过多个 AI Agent 协作，将小说创作拆解为：世界观规划 → 章节细化 → 正文撰写 → 逻辑审查 → 修改循环。
 
-可选地启用“文风参考”模式：系统会为每个场景额外运行两个 Agent，先联网检索相关文章，再提炼成一个场景级文风 brief，供主笔模仿高层风格特征。
-
 ## 架构
 
-```
-architect → outliner → style_researcher? → style_analyst? → novelist → editor
-                ↑                                       ↑            │
-                │                                       └─ revise ───┤  (未通过审核)
-                │                                                    │
-                │                                     advance_beat ←─┘  (通过审核)
-                │                                         │
-                │                                    more beats?
-                │                                         │
-                │                      style_researcher? / novelist
-                │                                         │
-                │                                    summarizer
-                │                                         │
-                └────────────── more chapters? ───────────┘
-                                                          │
-                                                         END
-```
 
 | Agent | 职责 |
 |-------|------|
@@ -114,8 +95,6 @@ src/novel_factory/
 └── agents/
     ├── architect.py   # 世界观规划
     ├── outliner.py    # 章节细化
-    ├── style_researcher.py # 检索参考文章
-    ├── style_analyst.py    # 提炼文风 brief
     ├── novelist.py    # 主笔
     ├── editor.py      # 审稿
     └── summarizer.py  # 摘要
