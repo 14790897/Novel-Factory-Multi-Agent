@@ -61,8 +61,13 @@ def _log_event_output(node_name: str, output: dict):
     LOGGER.info("NODE_OUTPUT %s\n%s", node_name, serialized)
 
 
-def _save_outputs(completed_chapters: list[dict], output_dir: Path, run_id: str):
-    """Write each chapter and the full novel to disk."""
+def _save_outputs(
+    completed_chapters: list[dict],
+    story_bible: dict,
+    output_dir: Path,
+    run_id: str,
+):
+    """Write each chapter, the story bible, and the full novel to disk."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     full_parts: list[str] = []
@@ -83,17 +88,12 @@ def _save_outputs(completed_chapters: list[dict], output_dir: Path, run_id: str)
     full_novel.write_text("\n\n---\n\n".join(full_parts) + "\n", encoding="utf-8")
     _log(f"  ✓ 已保存完整小说 → {full_novel}")
 
-    # Also dump the story bible
-    if completed_chapters:
-        bible_file = output_dir / f"story_bible_{run_id}.json"
-        bible_file.write_text(
-            json.dumps(
-                completed_chapters[0].get("story_bible", {}),
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
+    bible_file = output_dir / f"story_bible_{run_id}.json"
+    bible_file.write_text(
+        json.dumps(story_bible or {}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    _log(f"  ✓ 已保存设定集 → {bible_file}")
 
 
 def main():
@@ -231,7 +231,12 @@ def main():
     print()
     _log("=" * 60)
     _log("📖 小说生成完成！正在保存文件...")
-    _save_outputs(final_state.get("completed_chapters", []), Path(args.output_dir), run_id)
+    _save_outputs(
+        final_state.get("completed_chapters", []),
+        final_state.get("story_bible", {}),
+        Path(args.output_dir),
+        run_id,
+    )
     _log("=" * 60)
     _log("✅ 全部完成！")
 
